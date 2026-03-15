@@ -1,0 +1,5 @@
+vit_model/
+data/
+__pycache__/
+*.pkl
+*.parquet
