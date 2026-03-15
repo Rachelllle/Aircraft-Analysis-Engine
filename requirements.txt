@@ -1,0 +1,9 @@
+pyspark
+pillow
+numpy
+pandas
+matplotlib
+transformers
+torch
+psutil
+streamlit
