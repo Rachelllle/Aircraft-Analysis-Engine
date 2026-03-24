@@ -1,5 +1,6 @@
 import os
 import sys
+from src.logger_config import logger
 sys.path.append(os.path.dirname(__file__))
 
 from flask import Flask, request, jsonify, render_template_string
@@ -12,8 +13,9 @@ app = Flask(__name__)
 
 # load models once at startup
 print('loading ViT model...')
+logger.info("----------Loading Vit model----------")
 feature_extractor, vit, device = load_vit()
-print('ready!')
+logger.info('----------ready!----------')
 
 HTML = '''
 <!DOCTYPE html>
