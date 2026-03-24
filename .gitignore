@@ -3,3 +3,5 @@ data/
 __pycache__/
 *.pkl
 *.parquet
+logs/*
+logs/
