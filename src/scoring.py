@@ -1,5 +1,6 @@
 import os
 import sys
+from src.logger_config import logger
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
 import pandas as pd
@@ -47,12 +48,13 @@ def evaluate_model(model_name, df_test, target_col):
     acc = accuracy_score(y_true, y_pred)
     f1  = f1_score(y_true, y_pred, average='weighted')
 
-    print(f'\n{model_name}')
-    print(f'  accuracy : {acc*100:.2f}%')
-    print(f'  f1-score : {f1*100:.2f}%')
+    logger.info(f'\n{model_name}')
+    logger.info(f'  accuracy : {acc*100:.2f}%')
+    logger.info(f'  f1-score : {f1*100:.2f}%')
     return acc, f1
 
 def plot_results(results):
+    logger.info(' Creating plot results')
     labels = ['Manufacturer\n(30 classes)', 'Family\n(70 classes)', 'Variant\n(100 classes)']
     accs = [results['manufacturer'][0]*100, results['family'][0]*100, results['variant'][0]*100]
     f1s  = [results['manufacturer'][1]*100, results['family'][1]*100, results['variant'][1]*100]
@@ -80,7 +82,7 @@ def plot_results(results):
 def score_all_models():
     df = pd.read_pickle(BASE_PATH + '/embeddings_vit.pkl')
     df_test = df[df['split'] == 'test'].reset_index(drop=True)
-    print(f'test set : {len(df_test)} images')
+    logger.info(f'test set : {len(df_test)} images')
 
     acc_m, f1_m = evaluate_model('manufacturer', df_test, 'manufacturer')
     acc_f, f1_f = evaluate_model('family',       df_test, 'family')
