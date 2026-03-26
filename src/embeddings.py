@@ -61,7 +61,6 @@ def extract_embeddings(spark, feature_extractor, vit_model, device):
 
         with torch.no_grad():
             outputs = vit_model(**inputs)
-            # CLS token = global image representation
             embeddings = outputs.last_hidden_state[:, 0, :].cpu().numpy()
 
         all_embeddings.extend(embeddings.tolist())
@@ -98,7 +97,6 @@ def load_into_spark(spark, df_meta=None):
     pca_model = pca.fit(df_emb)
     df_emb = pca_model.transform(df_emb).drop('features_raw')
 
-    # save
     pca_model.write().overwrite().save(BASE_PATH + '/pca_model')
     df_emb.write.mode('overwrite').parquet(BASE_PATH + '/ms_embeddings_vit.parquet')
     logger.info(f'PCA done : 768 -> {PCA_K} dimensions')

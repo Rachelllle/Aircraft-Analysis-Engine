@@ -38,7 +38,6 @@ def train_linear_probe(df, target_col, model_name):
     
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     
-    # simple linear layer on top of ViT features
     model = nn.Sequential(
         nn.Linear(768, 512),
         nn.ReLU(),
@@ -53,7 +52,6 @@ def train_linear_probe(df, target_col, model_name):
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.5)
     criterion = nn.CrossEntropyLoss()
     
-    # training loop
     for epoch in range(50):
         model.train()
         total_loss = 0
@@ -68,7 +66,6 @@ def train_linear_probe(df, target_col, model_name):
         if (epoch+1) % 10 == 0:
             logger.info(f'  epoch {epoch+1}/50 — loss: {total_loss/len(loader):.4f}')
     
-    # save everything needed for prediction
     from src.config import MODEL_PATH
     os.makedirs(MODEL_PATH, exist_ok=True)
     joblib.dump({'mean': mean, 'std': std, 'le': le, 'num_classes': num_classes},

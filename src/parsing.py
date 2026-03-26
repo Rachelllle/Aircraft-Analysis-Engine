@@ -54,13 +54,11 @@ def build_full_dataset(spark):
     df_annotations = parse_annotations(spark)
     df_csv         = parse_csv(spark)
 
-    # Join everything together
     df_parsed = df_images \
         .join(df_annotations, 'image_id') \
         .join(df_csv.select('image_id', 'Labels'), 'image_id') \
         .withColumnRenamed('Labels', 'variant_label')
 
-    # Save metadata without binary content
     output_path = BASE_PATH + '/ms_parsed_full.parquet'
     df_parsed.drop('content').write.mode('overwrite').parquet(output_path)
     logger.info(f'parsing complete : {df_parsed.count()} images saved to {output_path}')
