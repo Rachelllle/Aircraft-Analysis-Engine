@@ -1,10 +1,10 @@
-# Aircraft Classification
+# ✈️ Aircraft Classification
 
 A PySpark-based image classification pipeline that predicts the **manufacturer**, **family**, and **variant** of aircraft from photos, using Vision Transformers (ViT) for feature extraction and PyTorch for classification.
 
 ---
 
-## Project Structure
+## 📁 Project Structure
 
 ```
 aircraft_project/
@@ -46,10 +46,10 @@ aircraft_project/
 │   ├── variant_model.pt
 │   └── variant_meta.pkl
 │
-├── vit_model/                  # ViT weights 
+├── vit_model/                  # ViT weights (not pushed to GitHub)
 │   ├── config.json
 │   ├── preprocessor_config.json
-│   └── model.safetensors       
+│   └── model.safetensors       # ~350MB
 │
 ├── app.py                      # Flask web interface
 ├── main.py                     # runs the full pipeline
@@ -61,7 +61,7 @@ aircraft_project/
 
 ---
 
-## Dataset
+## 📦 Dataset
 
 **FGVC-Aircraft** — Fine-Grained Visual Classification of Aircraft
 - Source: [Kaggle - seryouxblaster764/fgvc-aircraft](https://www.kaggle.com/datasets/seryouxblaster764/fgvc-aircraft)
@@ -83,46 +83,63 @@ Manufacturer (30 classes)
 
 ---
 
-## Installation
+## ⚙️ Installation
 
 ### Prerequisites
 - Python 3.11+
 - Java JDK 19 ([download here](https://www.oracle.com/java/technologies/downloads/))
-- WinUtils (Windows only) — place `winutils.exe` and `hadoop.dll` in `C:/Hadoop/bin/` and copy `hadoop.dll` to `C:/Windows/System32/`
 
 ### Install dependencies
 ```bash
 pip install -r requirements.txt
 ```
 
-### requirements.txt
-```
-pyspark
-pillow
-numpy
-pandas
-matplotlib
-transformers
-torch
-psutil
-flask
-huggingface_hub
-scikit-learn
-joblib
-```
-
 ### Download ViT model (first time only)
 ```bash
 python download_model.py
 ```
-Or download manually and place in `./vit_model/`:
-- `config.json`
-- `preprocessor_config.json`
-- `model.safetensors` from [HuggingFace](https://huggingface.co/google/vit-base-patch16-224/resolve/main/model.safetensors)
+> ⚠️ If you get an SSL error on Windows, download `model.safetensors` manually from [HuggingFace](https://huggingface.co/google/vit-base-patch16-224/resolve/main/model.safetensors) and place it in `./vit_model/`
 
 ---
 
-## How to Run
+## 🖥️ Setup by OS
+
+### 🪟 Windows
+1. Install Java JDK 19
+2. Download `winutils.exe` and `hadoop.dll` → place them in `C:/Hadoop/bin/`
+3. Copy `hadoop.dll` to `C:/Windows/System32/`
+4. Environment variables are set automatically in `spark_session.py`
+
+### 🍎 Mac
+1. Install Java JDK 19
+2. Install Homebrew if not already installed:
+```bash
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+```
+3. Install Hadoop via Homebrew:
+```bash
+brew install hadoop
+```
+4. Add to your `~/.zshrc` or `~/.bash_profile`:
+```bash
+export JAVA_HOME=$(/usr/libexec/java_home)
+export HADOOP_HOME=/opt/homebrew/opt/hadoop
+```
+
+### 🐧 Linux
+1. Install Java JDK 19:
+```bash
+sudo apt install openjdk-19-jdk
+```
+2. Add to your `~/.bashrc`:
+```bash
+export JAVA_HOME=/usr/lib/jvm/java-19-openjdk-amd64
+export PATH=$JAVA_HOME/bin:$PATH
+```
+
+---
+
+## 🚀 How to Run
 
 ### Option 1 — Run full pipeline
 ```bash
@@ -157,7 +174,7 @@ Then open your browser at `http://localhost:5000`
 
 ---
 
-## Pipeline Architecture
+## 🧠 Pipeline Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────┐
@@ -197,50 +214,7 @@ Then open your browser at `http://localhost:5000`
 
 ---
 
-## Model Details
-
-### Feature Extraction — ViT-B/16 (Vision Transformer)
-- Pre-trained on ImageNet-21k (14 million images)
-- Splits each image into 196 patches of 16×16 pixels
-- Analyzes relationships between all patches simultaneously
-- Outputs 768 features per image (CLS token)
-
-### Dimensionality Reduction — PCA (Spark MLlib)
-- Reduces from 768 → 256 dimensions
-- Keeps the most important information
-- Saved as `pca_model` for reuse on new images
-
-### Classification — Linear Probe (PyTorch)
-```
-Input:   768 features
-Layer 1: 512 neurons  + ReLU + Dropout(0.3)
-Layer 2: 256 neurons  + ReLU + Dropout(0.3)
-Output:  30 / 70 / 100 neurons (depending on the model)
-```
-
-| Parameter | Value |
-|---|---|
-| Optimizer | Adam |
-| Learning rate | 0.001 |
-| Epochs | 50 |
-| Scheduler | StepLR (step=10, gamma=0.5) |
-| Weight decay | 1e-4 |
-
----
-
-## Results
-
-| Model | Classes | Accuracy | F1-Score |
-|---|---|---|---|
-| Manufacturer | 30 | ~72% | ~71% |
-| Family | 70 | ~64% | ~63% |
-| Variant | 100 | ~51% | ~51% |
-
-These results are strong considering the dataset has only ~67 images per class on average. Random baseline would be 1/100 = 1% for variant.
-
----
-
-## Web App
+## 🌐 Web App
 
 The Flask web interface allows users to:
 1. Upload any aircraft photo
@@ -254,17 +228,6 @@ python app.py
 
 ---
 
-## Windows Setup Notes
+## 👥 Authors
 
-Spark on Windows requires additional configuration:
-
-1. **Java** — Install JDK 19 and set `JAVA_HOME`
-2. **WinUtils** — Place `winutils.exe` + `hadoop.dll` in `C:/Hadoop/bin/`
-3. **hadoop.dll** — Also copy to `C:/Windows/System32/`
-4. These environment variables are set automatically in `spark_session.py`
-
----
-
-## Authors
-
-BAKHOUCHE Rachel 
+BAKHOUCHE Rachel — 4th year AIBD
