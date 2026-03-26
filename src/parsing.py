@@ -67,13 +67,13 @@ def build_full_dataset(spark):
     
     # Show a sample of the data
     logger.info('\n sample of the parsed data :')
-    df_parsed.drop('content').show(5, truncate=True)
+    logger.info(df_parsed.drop('content').show(5, truncate=True))
     
     logger.info('\n counts per split :')
-    df_parsed.groupBy('split').count().show()
+    logger.info(df_parsed.groupBy('split').count().show())
     
     logger.info('\n sample manufacturers :')
-    df_parsed.select('manufacturer').distinct().show(10)
+    logger.info(df_parsed.select('manufacturer').distinct().show(10))
     
     return df_parsed
 
