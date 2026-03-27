@@ -41,7 +41,6 @@ def load_classifier(model_name):
     return model, meta
 
 def predict_image(image_path, feature_extractor, vit, device):
-    # load and extract ViT embedding
     img = Image.open(image_path).convert('RGB')
     inputs = feature_extractor(images=[img], return_tensors='pt')
     inputs = {k: v.to(device) for k, v in inputs.items()}
@@ -86,7 +85,6 @@ if __name__ == '__main__':
     print('loading ViT...')
     feature_extractor, vit, device = load_vit()
 
-    # test on a random image
     images_dir = DATA_PATH + 'images/'
     sample = os.listdir(images_dir)[0]
     image_path = images_dir + sample

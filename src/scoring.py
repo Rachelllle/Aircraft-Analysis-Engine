@@ -2,6 +2,8 @@ import os
 import sys
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
+import json
+import logging
 import pandas as pd
 import numpy as np
 import joblib
@@ -11,6 +13,8 @@ import matplotlib.pyplot as plt
 from sklearn.metrics import accuracy_score, f1_score
 
 from src.config import BASE_PATH, OUTPUT_PATH
+
+logger = logging.getLogger(__name__)
 
 def load_model(model_name):
     meta = joblib.load(f'{BASE_PATH}/sklearn_models/{model_name}_meta.pkl')
@@ -47,12 +51,37 @@ def evaluate_model(model_name, df_test, target_col):
     acc = accuracy_score(y_true, y_pred)
     f1  = f1_score(y_true, y_pred, average='weighted')
 
-    print(f'\n{model_name}')
-    print(f'  accuracy : {acc*100:.2f}%')
-    print(f'  f1-score : {f1*100:.2f}%')
+    logger.info(f'\n{model_name}')
+    logger.info(f'  accuracy : {acc*100:.2f}%')
+    logger.info(f'  f1-score : {f1*100:.2f}%')
     return acc, f1
 
+def save_scores_json(results):
+    os.makedirs(OUTPUT_PATH, exist_ok=True)
+    scores = {
+        'manufacturer': {
+            'accuracy': round(results['manufacturer'][0] * 100, 2),
+            'f1':       round(results['manufacturer'][1] * 100, 2),
+            'classes':  30
+        },
+        'family': {
+            'accuracy': round(results['family'][0] * 100, 2),
+            'f1':       round(results['family'][1] * 100, 2),
+            'classes':  70
+        },
+        'variant': {
+            'accuracy': round(results['variant'][0] * 100, 2),
+            'f1':       round(results['variant'][1] * 100, 2),
+            'classes':  100
+        }
+    }
+    path = OUTPUT_PATH + '/scores.json'
+    with open(path, 'w') as f:
+        json.dump(scores, f, indent=2)
+    logger.info(f'scores saved → {path}')
+
 def plot_results(results):
+    logger.info('Creating plot results')
     labels = ['Manufacturer\n(30 classes)', 'Family\n(70 classes)', 'Variant\n(100 classes)']
     accs = [results['manufacturer'][0]*100, results['family'][0]*100, results['variant'][0]*100]
     f1s  = [results['manufacturer'][1]*100, results['family'][1]*100, results['variant'][1]*100]
@@ -76,11 +105,11 @@ def plot_results(results):
     plt.suptitle('Aircraft Classification — ViT + Linear Probe (PyTorch)', fontsize=14)
     plt.tight_layout()
     plt.show()
-    
+
 def score_all_models():
     df = pd.read_pickle(BASE_PATH + '/embeddings_vit.pkl')
     df_test = df[df['split'] == 'test'].reset_index(drop=True)
-    print(f'test set : {len(df_test)} images')
+    logger.info(f'test set : {len(df_test)} images')
 
     acc_m, f1_m = evaluate_model('manufacturer', df_test, 'manufacturer')
     acc_f, f1_f = evaluate_model('family',       df_test, 'family')
@@ -91,7 +120,9 @@ def score_all_models():
         'family':       (acc_f, f1_f),
         'variant':      (acc_v, f1_v),
     }
+
     plot_results(results)
+    save_scores_json(results)  
     return results
 
 if __name__ == '__main__':

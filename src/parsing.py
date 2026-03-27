@@ -1,5 +1,6 @@
 import os
 import sys
+from src.logger_config import logger
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
 from pyspark.sql.functions import col, split, element_at, lit, regexp_replace
@@ -23,24 +24,24 @@ def build_annotation_df(spark, split_name):
     return df
 
 def parse_annotations(spark):
-    # combine train, val and test annotations into one dataframe
+    logger.info('combine train, val and test annotations into one dataframe')
     df = build_annotation_df(spark, 'train') \
         .union(build_annotation_df(spark, 'val')) \
         .union(build_annotation_df(spark, 'test'))
-    print(f'annotations ok : {df.count()} rows')
+    logger.info(f'annotations ok : {df.count()} rows')
     return df
 
 def parse_csv(spark):
-    # read kaggle csv files and extract image_id from filename
+    logger.info('read kaggle csv files and extract image_id from filename')
     df = spark.read.csv(CSV_PATH + 'train.csv', header=True).withColumn('split', lit('train')) \
         .union(spark.read.csv(CSV_PATH + 'val.csv', header=True).withColumn('split', lit('val'))) \
         .union(spark.read.csv(CSV_PATH + 'test.csv', header=True).withColumn('split', lit('test')))
     df = df.withColumn('image_id', regexp_replace(col('filename'), '\\.jpg$', ''))
-    print(f'csv ok : {df.count()} rows')
+    logger.info(f'csv ok : {df.count()} rows')
     return df
 
 def build_full_dataset(spark):
-    # Load images as binary files
+    logger.info('Load images as binary files')
     df_images = spark.read.format('binaryFile') \
         .option('pathGlobFilter', '*.jpg') \
         .load(DATA_PATH + 'images/') \
@@ -50,25 +51,23 @@ def build_full_dataset(spark):
     df_annotations = parse_annotations(spark)
     df_csv         = parse_csv(spark)
 
-    # Join everything together
     df_parsed = df_images \
         .join(df_annotations, 'image_id') \
         .join(df_csv.select('image_id', 'Labels'), 'image_id') \
         .withColumnRenamed('Labels', 'variant_label')
 
-    # Save metadata without binary content
     output_path = BASE_PATH + '/ms_parsed_full.parquet'
     df_parsed.drop('content').write.mode('overwrite').parquet(output_path)
-    print(f'parsing complete : {df_parsed.count()} images saved to {output_path}')
     
-    # Show a sample of the data
-    print('\n sample of the parsed data :')
+    logger.info(f'parsing complete : {df_parsed.count()} images saved to {output_path}')
+    
+    logger.info('\n sample of the parsed data :')
     df_parsed.drop('content').show(5, truncate=True)
     
-    print('\n counts per split :')
+    logger.info('\n counts per split :')
     df_parsed.groupBy('split').count().show()
     
-    print('\n sample manufacturers :')
+    logger.info('\n sample manufacturers :')
     df_parsed.select('manufacturer').distinct().show(10)
     
     return df_parsed

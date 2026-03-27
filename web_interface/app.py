@@ -1,25 +1,63 @@
 import os
 import sys
-sys.path.append(os.path.dirname(__file__))
+import json
+from datetime import datetime
 
+sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+
+from src.logger_config import logger
 from flask import Flask, request, jsonify, render_template_string
 from PIL import Image
 import io
 
 from src.predict import load_vit, predict_image
+from src.config import BASE_PATH, OUTPUT_PATH
 
 app = Flask(__name__)
 
-# load models once at startup
 print('loading ViT model...')
+logger.info("----------Loading ViT model----------")
 feature_extractor, vit, device = load_vit()
-print('ready!')
+logger.info('----------Ready!----------')
+
+def save_prediction(image_name, results):
+    """Save each prediction to predictions.json for Streamlit to read later"""
+    os.makedirs(OUTPUT_PATH, exist_ok=True)
+    path = OUTPUT_PATH + '/predictions.json'
+
+    if os.path.exists(path):
+        with open(path, 'r') as f:
+            history = json.load(f)
+    else:
+        history = []
+
+    history.append({
+        'timestamp':    datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+        'image':        image_name,
+        'manufacturer': {
+            'label':      results['manufacturer']['label'],
+            'confidence': round(results['manufacturer']['confidence'], 2)
+        },
+        'family': {
+            'label':      results['family']['label'],
+            'confidence': round(results['family']['confidence'], 2)
+        },
+        'variant': {
+            'label':      results['variant']['label'],
+            'confidence': round(results['variant']['confidence'], 2)
+        }
+    })
+
+    with open(path, 'w') as f:
+        json.dump(history, f, indent=2)
+
+    logger.info(f'prediction saved -> {path}')
 
 HTML = '''
 <!DOCTYPE html>
 <html>
 <head>
-    <title>✈️ Aircraft Classifier</title>
+    <title>Aircraft Classifier</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: Arial, sans-serif; background: #0f172a; color: white; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
@@ -53,7 +91,7 @@ HTML = '''
     </style>
 </head>
 <body>
-    <h1>✈️ Aircraft Classifier</h1>
+    <h1>Aircraft Classifier</h1>
     <p class="sub">Upload an aircraft photo to identify it</p>
 
     <div class="card">
@@ -99,6 +137,7 @@ HTML = '''
     <script>
         let selectedFile = null;
 
+        // Show image preview when user selects a file
         function previewImage(event) {
             selectedFile = event.target.files[0];
             if (!selectedFile) return;
@@ -113,6 +152,7 @@ HTML = '''
             reader.readAsDataURL(selectedFile);
         }
 
+        // Send image to Flask /predict endpoint and display results
         async function predict() {
             if (!selectedFile) return;
 
@@ -127,13 +167,14 @@ HTML = '''
                 const response = await fetch('/predict', { method: 'POST', body: formData });
                 const data = await response.json();
 
+                // Fill in results for each classification level
                 ['manufacturer', 'family', 'variant'].forEach(level => {
                     const r = data[level];
-                    document.getElementById(`${level.replace('manufacturer','manuf').replace('family','family').replace('variant','variant')}-label`).textContent = r.label;
-                    document.getElementById(`${level.replace('manufacturer','manuf')}-conf`).textContent = `Confidence: ${r.confidence.toFixed(1)}%`;
-                    document.getElementById(`${level.replace('manufacturer','manuf')}-bar`).style.width = r.confidence + '%';
-
-                    const top3div = document.getElementById(`${level.replace('manufacturer','manuf')}-top3`);
+                    const prefix = level === 'manufacturer' ? 'manuf' : level;
+                    document.getElementById(`${prefix}-label`).textContent = r.label;
+                    document.getElementById(`${prefix}-conf`).textContent = `Confidence: ${r.confidence.toFixed(1)}%`;
+                    document.getElementById(`${prefix}-bar`).style.width = r.confidence + '%';
+                    const top3div = document.getElementById(`${prefix}-top3`);
                     top3div.innerHTML = r.top3.map(t =>
                         `<div class="top3-item"><span>${t.label}</span><span>${t.confidence.toFixed(1)}%</span></div>`
                     ).join('');
@@ -151,7 +192,6 @@ HTML = '''
 </body>
 </html>
 '''
-
 @app.route('/')
 def index():
     return render_template_string(HTML)
@@ -159,15 +199,15 @@ def index():
 @app.route('/predict', methods=['POST'])
 def predict():
     file = request.files['image']
-    img  = Image.open(io.BytesIO(file.read())).convert('RGB')
+    image_name = file.filename
+    img = Image.open(io.BytesIO(file.read())).convert('RGB')
 
-    # save temp
     temp_path = BASE_PATH + '/temp_predict.jpg'
     img.save(temp_path)
 
     results, _ = predict_image(temp_path, feature_extractor, vit, device)
+    save_prediction(image_name, results)
 
-    # fix key names for js
     response = {}
     for level in ['manufacturer', 'family', 'variant']:
         response[level] = results[level]
@@ -175,5 +215,4 @@ def predict():
     return jsonify(response)
 
 if __name__ == '__main__':
-    from src.config import BASE_PATH
     app.run(debug=False, port=5000)
