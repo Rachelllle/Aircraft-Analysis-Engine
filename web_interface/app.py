@@ -3,7 +3,6 @@ import sys
 import json
 from datetime import datetime
 
-# Add project root to path so we can import src modules
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
 from src.logger_config import logger
@@ -16,7 +15,6 @@ from src.config import BASE_PATH, OUTPUT_PATH
 
 app = Flask(__name__)
 
-# Load ViT model once when the server starts 
 print('loading ViT model...')
 logger.info("----------Loading ViT model----------")
 feature_extractor, vit, device = load_vit()
@@ -27,14 +25,12 @@ def save_prediction(image_name, results):
     os.makedirs(OUTPUT_PATH, exist_ok=True)
     path = OUTPUT_PATH + '/predictions.json'
 
-    # Load existing history if file already exists
     if os.path.exists(path):
         with open(path, 'r') as f:
             history = json.load(f)
     else:
         history = []
 
-    # Append the new prediction with timestamp
     history.append({
         'timestamp':    datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
         'image':        image_name,
@@ -52,13 +48,11 @@ def save_prediction(image_name, results):
         }
     })
 
-    # Save updated history back to file
     with open(path, 'w') as f:
         json.dump(history, f, indent=2)
 
     logger.info(f'prediction saved -> {path}')
 
-# ── HTML frontend ──
 HTML = '''
 <!DOCTYPE html>
 <html>
@@ -198,32 +192,22 @@ HTML = '''
 </body>
 </html>
 '''
-
-# ── Routes ──
-
 @app.route('/')
 def index():
-    # Serve the main HTML page
     return render_template_string(HTML)
 
 @app.route('/predict', methods=['POST'])
 def predict():
-    # Receive image, run prediction, save result and return JSON
     file = request.files['image']
     image_name = file.filename
     img = Image.open(io.BytesIO(file.read())).convert('RGB')
 
-    # Save temp image for prediction
     temp_path = BASE_PATH + '/temp_predict.jpg'
     img.save(temp_path)
 
-    # Run prediction
     results, _ = predict_image(temp_path, feature_extractor, vit, device)
-
-    # Save prediction to predictions.json for Streamlit
     save_prediction(image_name, results)
 
-    # Return results as JSON to the frontend
     response = {}
     for level in ['manufacturer', 'family', 'variant']:
         response[level] = results[level]

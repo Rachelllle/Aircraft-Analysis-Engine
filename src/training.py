@@ -17,19 +17,16 @@ from src.config import BASE_PATH
 def train_linear_probe(df, target_col, model_name):
     X = np.array(df['embedding'].tolist(), dtype=np.float32)
     
-    # encode labels
     le = LabelEncoder()
     y = le.fit_transform(df[target_col].values)
     num_classes = len(le.classes_)
     
     logger.info(f'training {model_name} ({num_classes} classes, {len(X)} samples)...')
     
-    # normalize
     mean = X.mean(axis=0)
     std  = X.std(axis=0) + 1e-8
     X = (X - mean) / std
     
-    # tensors
     X_tensor = torch.tensor(X)
     y_tensor = torch.tensor(y, dtype=torch.long)
     

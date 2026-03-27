@@ -24,7 +24,6 @@ def build_annotation_df(spark, split_name):
     return df
 
 def parse_annotations(spark):
-    # combine train, val and test annotations into one dataframe
     logger.info('combine train, val and test annotations into one dataframe')
     df = build_annotation_df(spark, 'train') \
         .union(build_annotation_df(spark, 'val')) \
@@ -33,7 +32,6 @@ def parse_annotations(spark):
     return df
 
 def parse_csv(spark):
-    # read kaggle csv files and extract image_id from filename
     logger.info('read kaggle csv files and extract image_id from filename')
     df = spark.read.csv(CSV_PATH + 'train.csv', header=True).withColumn('split', lit('train')) \
         .union(spark.read.csv(CSV_PATH + 'val.csv', header=True).withColumn('split', lit('val'))) \
@@ -43,7 +41,6 @@ def parse_csv(spark):
     return df
 
 def build_full_dataset(spark):
-    # Load images as binary files
     logger.info('Load images as binary files')
     df_images = spark.read.format('binaryFile') \
         .option('pathGlobFilter', '*.jpg') \
@@ -61,9 +58,9 @@ def build_full_dataset(spark):
 
     output_path = BASE_PATH + '/ms_parsed_full.parquet'
     df_parsed.drop('content').write.mode('overwrite').parquet(output_path)
+    
     logger.info(f'parsing complete : {df_parsed.count()} images saved to {output_path}')
     
-    # Show a sample of the data
     logger.info('\n sample of the parsed data :')
     df_parsed.drop('content').show(5, truncate=True)
     

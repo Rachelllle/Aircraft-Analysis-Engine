@@ -1,12 +1,11 @@
-# ✈️ Aircraft Classification
+# Aircraft Classification
 
 A PySpark-based image classification pipeline that predicts the **manufacturer**, **family**, and **variant** of aircraft from photos, using Vision Transformers (ViT) for feature extraction and PyTorch for classification.
 
 ---
 
-## 📁 Project Structure
-
-```
+## Project Structure
+```bash
 aircraft_project/
 │
 ├── data/
@@ -17,28 +16,21 @@ aircraft_project/
 │       └── fgvc-aircraft-2013b/
 │           └── fgvc-aircraft-2013b/
 │               └── data/
-│                   ├── images/                        # 10,000 aircraft photos
-│                   ├── images_manufacturer_train.txt
-│                   ├── images_manufacturer_val.txt
-│                   ├── images_manufacturer_test.txt
-│                   ├── images_family_train.txt
-│                   ├── images_family_val.txt
-│                   ├── images_family_test.txt
-│                   ├── images_variant_train.txt
-│                   ├── images_variant_val.txt
-│                   └── images_variant_test.txt
+│                   ├── images/        # 10,000 aircraft photos
+│                   └── *.txt files
 │
 ├── src/
 │   ├── __init__.py
-│   ├── config.py               # paths and global parameters
-│   ├── spark_session.py        # SparkSession setup
-│   ├── parsing.py              # data parsing and joining
-│   ├── embeddings.py           # ViT feature extraction + PCA
-│   ├── training.py             # PyTorch linear probe training
-│   ├── scoring.py              # model evaluation
-│   └── predict.py              # prediction on new images
+│   ├── config.py                # paths and global parameters
+│   ├── spark_session.py         # SparkSession setup
+│   ├── parsing.py               # data parsing and joining
+│   ├── embeddings.py            # ViT feature extraction + PCA
+│   ├── training.py              # PyTorch linear probe training
+│   ├── scoring.py               # model evaluation
+│   ├── predict.py               # prediction on new images
+│   └── logger_config.py         # logging configuration
 │
-├── models/                     # saved models after training
+├── models/                      # saved models after training
 │   ├── manufacturer_model.pt
 │   ├── manufacturer_meta.pkl
 │   ├── family_model.pt
@@ -46,14 +38,22 @@ aircraft_project/
 │   ├── variant_model.pt
 │   └── variant_meta.pkl
 │
-├── vit_model/                  # ViT weights (not pushed to GitHub)
+├── vit_model/                   # ViT weights
 │   ├── config.json
 │   ├── preprocessor_config.json
-│   └── model.safetensors       # ~350MB
+│   └── model.safetensors
 │
-├── app.py                      # Flask web interface
-├── main.py                     # runs the full pipeline
-├── download_model.py           # downloads ViT model
+├── web_interface/               # Web applications
+│   ├── app.py                   # Flask app — predictions
+│   └── streamlit_app.py         # Streamlit dashboard — results
+│
+├── outputs/                     # Generated files
+│   ├── scores.json              # model evaluation results
+│   └── predictions.json         # prediction history
+│
+├── logs/                        # log files
+├── main.py                      # runs the full pipeline
+├── download_model.py            # downloads ViT model
 ├── requirements.txt
 ├── .gitignore
 └── README.md
@@ -61,13 +61,12 @@ aircraft_project/
 
 ---
 
-## 📦 Dataset
+## Dataset
 
 **FGVC-Aircraft** — Fine-Grained Visual Classification of Aircraft
 - Source: [Kaggle - seryouxblaster764/fgvc-aircraft](https://www.kaggle.com/datasets/seryouxblaster764/fgvc-aircraft)
 - 10,000 aircraft images
 - 3-level hierarchy:
-
 ```
 Manufacturer (30 classes)
     └── Family (70 classes)
@@ -83,7 +82,7 @@ Manufacturer (30 classes)
 
 ---
 
-## ⚙️ Installation
+## Installation
 
 ### Prerequisites
 - Python 3.11+
@@ -94,23 +93,23 @@ Manufacturer (30 classes)
 pip install -r requirements.txt
 ```
 
-### Download ViT model (first time only)
+### Download ViT model
 ```bash
 python download_model.py
 ```
-> ⚠️ If you get an SSL error on Windows, download `model.safetensors` manually from [HuggingFace](https://huggingface.co/google/vit-base-patch16-224/resolve/main/model.safetensors) and place it in `./vit_model/`
+> If you get an SSL error on Windows, download `model.safetensors` manually from [HuggingFace](https://huggingface.co/google/vit-base-patch16-224/resolve/main/model.safetensors) and place it in `./vit_model/`
 
 ---
 
-## 🖥️ Setup by OS
+## Setup by OS
 
-### 🪟 Windows
+### Windows
 1. Install Java JDK 19
 2. Download `winutils.exe` and `hadoop.dll` → place them in `C:/Hadoop/bin/`
 3. Copy `hadoop.dll` to `C:/Windows/System32/`
 4. Environment variables are set automatically in `spark_session.py`
 
-### 🍎 Mac
+### Mac
 1. Install Java JDK 19
 2. Install Homebrew if not already installed:
 ```bash
@@ -126,7 +125,7 @@ export JAVA_HOME=$(/usr/libexec/java_home)
 export HADOOP_HOME=/opt/homebrew/opt/hadoop
 ```
 
-### 🐧 Linux
+### Linux
 1. Install Java JDK 19:
 ```bash
 sudo apt install openjdk-19-jdk
@@ -139,7 +138,7 @@ export PATH=$JAVA_HOME/bin:$PATH
 
 ---
 
-## 🚀 How to Run
+## How to Run
 
 ### Option 1 — Run full pipeline
 ```bash
@@ -148,86 +147,42 @@ python main.py
 
 ### Option 2 — Run step by step
 ```bash
-cd src
-
 # Step 1 — Parse annotations and images (Spark)
-python parsing.py
+python src/parsing.py
 
 # Step 2 — Extract ViT embeddings + PCA (~20-30 min)
-python embeddings.py
+python src/embeddings.py
 
 # Step 3 — Train 3 PyTorch models (~10 min)
-python training.py
+python src/training.py
 
-# Step 4 — Evaluate models
-python scoring.py
+# Step 4 — Evaluate models and save scores.json
+python src/scoring.py
 
 # Step 5 — Test prediction on one image
-python predict.py
+python src/predict.py
 ```
 
-### Option 3 — Launch web app
+### Option 3 — Launch Flask web app
 ```bash
-python app.py
+python web_interface/app.py
 ```
 Then open your browser at `http://localhost:5000`
 
----
-
-## 🧠 Pipeline Architecture
-
-```
-┌─────────────────────────────────────────────────────────┐
-│                     PARSING  (Spark)                    │
-│  .txt files + CSV  →  Spark DataFrame (10,000 rows)     │
-│  columns: image_id, manufacturer, family, variant,      │
-│           split, variant_label                          │
-└────────────────────────┬────────────────────────────────┘
-                         │
-┌────────────────────────▼────────────────────────────────┐
-│                 EMBEDDINGS  (Transformers)               │
-│  image.jpg  →  ViT-B/16  →  768 features                │
-│           →  PCA (Spark MLlib)  →  256 features         │
-│           saved to embeddings_vit.pkl                   │
-└────────────────────────┬────────────────────────────────┘
-                         │
-┌────────────────────────▼────────────────────────────────┐
-│                 TRAINING  (PyTorch)                     │
-│  768 features  →  Linear Probe (MLP)                    │
-│  3 separate models:                                     │
-│    - manufacturer  (30 classes)                         │
-│    - family        (70 classes)                         │
-│    - variant       (100 classes)                        │
-└────────────────────────┬────────────────────────────────┘
-                         │
-┌────────────────────────▼────────────────────────────────┐
-│                    SCORING                              │
-│  Accuracy + F1-Score for each model                     │
-└────────────────────────┬────────────────────────────────┘
-                         │
-┌────────────────────────▼────────────────────────────────┐
-│                   WEB APP  (Flask)                      │
-│  Upload image  →  predict manufacturer/family/variant   │
-│  Shows top 3 predictions with confidence scores         │
-└─────────────────────────────────────────────────────────┘
-```
-
----
-
-## 🌐 Web App
-
-The Flask web interface allows users to:
-1. Upload any aircraft photo
-2. Get instant predictions for manufacturer, family and variant
-3. See confidence scores and top 3 predictions per level
-
+### Option 4 — Launch Streamlit dashboard
 ```bash
-python app.py
-# open http://localhost:5000
+streamlit run web_interface/streamlit_app.py
 ```
+Then open your browser at `http://localhost:8501`
+
+> Note: Run `scoring.py` before launching Streamlit to generate `scores.json`
 
 ---
 
-## 👥 Authors
+## Authors
 
-BAKHOUCHE Rachel — 4th year AIBD
+BAKHOUCHE Rachel
+BELGUEDJ Nassilya
+DIENG Mamadou
+BEN OUSSAID Arezki
+VAN Hugo

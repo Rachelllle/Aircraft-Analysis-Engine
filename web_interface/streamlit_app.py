@@ -18,11 +18,9 @@ st.set_page_config(
 
 @st.cache_data
 def load_data():
-    # Load the embeddings dataset 
     return pd.read_pickle(BASE_PATH + '/embeddings_vit.pkl')
 
 def load_scores():
-    # Load pre-computed scores from scoring.py
     path = OUTPUT_PATH + '/scores.json'
     if not os.path.exists(path):
         return None
@@ -30,31 +28,25 @@ def load_scores():
         return json.load(f)
 
 def load_predictions():
-    # Load prediction history saved by app.py (Flask)
     path = OUTPUT_PATH + '/predictions.json'
     if not os.path.exists(path):
         return []
     with open(path, 'r') as f:
         return json.load(f)
 
-# ── Sidebar navigation ──
 page = st.sidebar.selectbox('Navigation', [
     'Dataset Overview',
     'Model Scoring',
     'Predictions History'
 ])
 
-# ════════════════════════════════
 # PAGE 1 — Dataset Overview
-# ════════════════════════════════
 if page == 'Dataset Overview':
     st.title('Dataset Overview')
     st.markdown('**FGVC-Aircraft** — Fine-Grained Visual Classification of Aircraft')
 
-    # Load dataset
     df = load_data()
 
-    # Show key numbers at the top
     col1, col2, col3, col4 = st.columns(4)
     col1.metric('Total Images', '10,000')
     col2.metric('Manufacturers', df['manufacturer'].nunique())
@@ -66,7 +58,6 @@ if page == 'Dataset Overview':
     col1, col2 = st.columns(2)
 
     with col1:
-        # Show how images are split between train/val/test
         st.subheader('Split Distribution')
         split_counts = df['split'].value_counts()
         fig, ax = plt.subplots(figsize=(5, 5))
@@ -82,7 +73,6 @@ if page == 'Dataset Overview':
         st.pyplot(fig)
 
     with col2:
-        # Top manufacturers by image count
         st.subheader('Top 10 Manufacturers')
         top_manuf = df['manufacturer'].value_counts().head(10)
         fig, ax = plt.subplots(figsize=(6, 5))
@@ -94,7 +84,6 @@ if page == 'Dataset Overview':
 
     st.markdown('---')
 
-    # Top families by image count
     st.subheader('Top 15 Families')
     top_family = df['family'].value_counts().head(15)
     fig, ax = plt.subplots(figsize=(14, 5))
@@ -105,20 +94,17 @@ if page == 'Dataset Overview':
     plt.tight_layout()
     st.pyplot(fig)
 
-# ════════════════════════════════
+
 # PAGE 2 — Model Scoring
-# ════════════════════════════════
 elif page == 'Model Scoring':
     st.title('Model Scoring')
     st.markdown('Results from the last evaluation on the test set.')
 
-    # Load scores computed by scoring.py
     scores = load_scores()
 
     if scores is None:
         st.warning('No scores found. Please run `python src/scoring.py` first.')
     else:
-        # Show accuracy and F1 for each level
         col1, col2, col3 = st.columns(3)
         col1.metric(
             'Manufacturer Accuracy',
@@ -138,7 +124,6 @@ elif page == 'Model Scoring':
 
         st.markdown('---')
 
-        # Bar charts side by side — Accuracy and F1
         labels = [
             f"Manufacturer\n({scores['manufacturer']['classes']} classes)",
             f"Family\n({scores['family']['classes']} classes)",
@@ -158,7 +143,6 @@ elif page == 'Model Scoring':
         fig, axes = plt.subplots(1, 2, figsize=(14, 6))
         colors = ['#4CAF50', '#2196F3', '#FF9800']
 
-        # Accuracy chart
         bars1 = axes[0].bar(labels, accs, color=colors, width=0.5)
         axes[0].set_title('Accuracy per classification level', fontsize=13, pad=12)
         axes[0].set_ylabel('Accuracy (%)')
@@ -170,7 +154,6 @@ elif page == 'Model Scoring':
                 ha='center', fontweight='bold', fontsize=11
             )
 
-        # F1-Score chart
         bars2 = axes[1].bar(labels, f1s, color=colors, width=0.5)
         axes[1].set_title('F1-Score per classification level', fontsize=13, pad=12)
         axes[1].set_ylabel('F1-Score (%)')
@@ -189,28 +172,23 @@ elif page == 'Model Scoring':
         plt.tight_layout()
         st.pyplot(fig)
 
-# ════════════════════════════════
 # PAGE 3 — Predictions History
-# ════════════════════════════════
 elif page == 'Predictions History':
     st.title('Predictions History')
     st.markdown('All predictions made via the Flask app.')
 
-    # Load predictions saved by app.py
     predictions = load_predictions()
 
     if not predictions:
         st.warning('No predictions yet. Use the Flask app to make predictions first.')
         st.info('Run `python web_interface/app.py` then open http://localhost:5000')
     else:
-        # Quick summary stats
         col1, col2 = st.columns(2)
         col1.metric('Total Predictions', len(predictions))
         col2.metric('Last Prediction', predictions[-1]['timestamp'])
 
         st.markdown('---')
 
-        # Full prediction table
         st.subheader('Prediction Log')
         df_pred = pd.DataFrame([{
             'Timestamp':    p['timestamp'],
@@ -223,7 +201,6 @@ elif page == 'Predictions History':
 
         st.markdown('---')
 
-        # Confidence over time 
         st.subheader('Confidence over time')
         fig, ax = plt.subplots(figsize=(14, 5))
         x = range(len(predictions))

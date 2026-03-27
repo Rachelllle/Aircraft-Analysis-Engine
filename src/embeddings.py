@@ -1,6 +1,6 @@
 import ssl
 import os
-from src.logger_config import logger
+import logging
 
 ssl._create_default_https_context = ssl._create_unverified_context
 os.environ['CURL_CA_BUNDLE'] = ''
@@ -27,9 +27,11 @@ from pyspark.sql.functions import udf
 from src.config import DATA_PATH, BASE_PATH, BATCH_SIZE, PCA_K
 from src.spark_session import get_spark
 
+logger = logging.getLogger(__name__)
 
 def load_vit_model():
-    logger.info('loading ViT-B/16 (first download ~350MB)...')
+
+    logger.info('loading ViT-B/16...')
     feature_extractor = ViTFeatureExtractor.from_pretrained('google/vit-base-patch16-224')
     vit_model = ViTModel.from_pretrained('google/vit-base-patch16-224')
     vit_model.eval()
@@ -39,7 +41,7 @@ def load_vit_model():
     return feature_extractor, vit_model, device
 
 def extract_embeddings(spark, feature_extractor, vit_model, device):
-    # load metadata parsed in previous step
+
     logger.info('load metadata parsed in previous step')
     df_meta = spark.read.parquet(BASE_PATH + '/ms_parsed_full.parquet').toPandas()
     images_dir = DATA_PATH + 'images/'
@@ -74,6 +76,7 @@ def extract_embeddings(spark, feature_extractor, vit_model, device):
     return df_meta
 
 def load_into_spark(spark, df_meta=None):
+
     if df_meta is None:
         df_meta = pd.read_pickle(BASE_PATH + '/embeddings_vit.pkl')
 
@@ -81,17 +84,14 @@ def load_into_spark(spark, df_meta=None):
     from pyspark.ml.feature import PCA
     from pyspark.sql.types import StructType, StructField, StringType
 
-    # convert embeddings to vectors directly in pandas (no UDF)
     logger.info('converting embeddings to vectors...')
     df_meta['features_raw'] = df_meta['embedding'].apply(lambda x: Vectors.dense(x))
     df_meta = df_meta.drop(columns=['embedding'])
 
-    # load into spark
     logger.info('loading into spark...')
     df_emb = spark.createDataFrame(df_meta)
     df_emb = df_emb.repartition(10)
 
-    # apply PCA : 768 → 256
     logger.info(f'applying PCA 768 -> {PCA_K}...')
     pca = PCA(k=PCA_K, inputCol='features_raw', outputCol='features')
     pca_model = pca.fit(df_emb)
@@ -104,10 +104,12 @@ def load_into_spark(spark, df_meta=None):
 
 if __name__ == '__main__':
     spark = get_spark()
+    
     feature_extractor, vit_model, device = load_vit_model()
     df_meta = extract_embeddings(spark, feature_extractor, vit_model, device)
     
     df_emb, pca_model = load_into_spark(spark)
+    
     df_emb.printSchema()
     logger.info('embeddings done!')
     spark.stop()
